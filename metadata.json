@@ -1,0 +1,6 @@
+{
+  "name": "KenyaLoad One - Freight Matching & Escrow Network",
+  "description": "KenyaLoad One: Kenya's freight exchange and live load board for verified shippers and transporters along the Northern Corridor (Mombasa-Nairobi-Malaba) with real-time Socket.IO dispatch and M-Pesa escrow.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,316 @@
+// ==============================================================================
+// KenyaLoad One - Prisma Schema (PostgreSQL + PostGIS)
+// Production-grade Schema for Freight Matching, Carrier Verification & M-Pesa Escrow
+// Northern Corridor Freight Logistics (Mombasa - Nairobi - Malaba)
+// ==============================================================================
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis()] // Enables PostGIS extension for geospatial routing and proximity matching
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+// ------------------------------------------------------------------------------
+// Enums
+// ------------------------------------------------------------------------------
+
+enum UserRole {
+  SHIPPER       // Cargo owners, manufacturers, agricultural exporters (e.g. tea, flowers)
+  TRANSPORTER   // Fleet owners, individual truck owner-operators, SACCOs
+  AGENT         // Clearing and forwarding agents, licensed freight brokers
+  ADMIN         // KenyaLoad compliance & system administrators
+}
+
+enum VerificationStatus {
+  PENDING       // Documents uploaded; under review by compliance team
+  VERIFIED      // NTSA, KRA, and Business registration verified active
+  REJECTED      // Invalid documents, expired road service license, or flagged tax status
+}
+
+enum DocumentType {
+  NTSA_ROAD_SERVICE_LICENCE  // National Transport and Safety Authority Commercial License
+  KRA_PIN_CERTIFICATE        // Kenya Revenue Authority Tax Compliance PIN
+  BUSINESS_REGISTRATION      // Certificate of Incorporation / Business Name Registration
+  TRUCK_LOGBOOK              // Vehicle ownership / logbook showing chassis & tare weight
+  GOODS_IN_TRANSIT_INSURANCE // Mandatory GIT insurance policy for high-value cargo
+  DRIVER_EPRA_PERMIT         // Required for Petroleum & Hazardous Tanker haulage
+}
+
+enum EquipmentType {
+  CONTAINER     // 20ft / 40ft Skeletal semi-trailers (Port of Mombasa / ICD Embakasi)
+  FLATBED       // Steel, timber, construction machinery, and abnormal loads
+  BOX_BODY      // FMCG, dry goods, electronics, secure pharmaceutical cargo
+  TANKER        // Fuel (AGO/PMS), edible oil, chemical bulk haulage
+  REEFER        // Temperature-controlled (horticulture, flowers, dairy, meat exports)
+  CANTER        // 3-10 Ton light/medium commercial trucks for last-mile & regional
+}
+
+enum LoadStatus {
+  AVAILABLE     // Open for bids and instant booking on live board
+  BOOKED        // Carrier matched and escrow initiated/held
+  IN_TRANSIT    // Cargo loaded, driver en route along the corridor
+  COMPLETED     // Delivered, e-POD verified, escrow released
+  CANCELLED     // Cancelled by shipper before pickup
+}
+
+enum TruckStatus {
+  AVAILABLE     // Free for dispatch; searching for outbound or backhaul loads
+  ACTIVE        // Assigned to an active consignment in transit
+  MAINTENANCE   // Under mechanical service or NTSA inspection
+}
+
+enum EscrowStatus {
+  PENDING_STK   // STK push sent to shipper mobile, waiting for M-Pesa PIN confirmation
+  HELD          // Funds locked safely in KenyaLoad Safaricom B2B Escrow Utility Account
+  RELEASED      // Disbursed to Transporter Paybill/Till upon verified e-POD OTP
+  DISPUTED      // Flagged by either party (shortage, cargo damage, or transit delay)
+  REFUNDED      // Returned to shipper due to cancelled dispatch
+}
+
+enum CorridorWaypoint {
+  MOMBASA_PORT  // Kilindini Harbour / KPA Port
+  VOI           // Taita Taveta corridor junction
+  MTITO_ANDEI   // Traditional long-distance driver stopover
+  MACHAKOS      // Athi River / Kyumvi weighbridge
+  NAIROBI_ICD   // Inland Container Depot Embakasi & Industrial Area
+  NAIVASHA_DRY  // Naivasha Inland Dry Port / SGR railhead
+  NAKURU        // Salgaa & Western Kenya transit junction
+  ELDORET       // North Rift agricultural hub
+  MALABA_BORDER // Kenya-Uganda Great Lakes transit border
+  BUSIA_BORDER  // Alternative Western Kenya border crossing
+}
+
+// ------------------------------------------------------------------------------
+// Models
+// ------------------------------------------------------------------------------
+
+/// Registered platform user (Shipper, Transporter, or Agent)
+model User {
+  id                 String             @id @default(uuid())
+  email              String             @unique
+  phoneNumber        String             @unique // Format: +2547XXXXXXXX or 07XXXXXXXX
+  passwordHash       String
+  role               UserRole           @default(TRANSPORTER)
+  verificationStatus VerificationStatus @default(PENDING)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  // 1:1 Profile relation
+  profile            Profile?
+
+  // 1:N Verification Documents (NTSA, KRA, Business Reg, Logbooks)
+  documents          VerificationDocument[]
+
+  // Relations as Shipper
+  postedLoads        Load[]             @relation("ShipperLoads")
+
+  // Relations as Transporter
+  trucks             Truck[]            @relation("TransporterTrucks")
+  bookings           Booking[]          @relation("TransporterBookings")
+
+  // Audit and notification logs
+  auditLogs          AuditLog[]
+
+  @@index([role, verificationStatus])
+  @@index([phoneNumber])
+  @@map("users")
+}
+
+/// Detailed business profile for KYC and NTSA compliance
+model Profile {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  legalName      String    // Registered business or individual name
+  tradingName    String?   // Doing Business As (DBA)
+  kraPin         String?   @unique // e.g., P051234567Z
+  ntsaLicenceNo  String?   @unique // Commercial Road Service License number
+  county         String    // Base county (e.g., Mombasa, Nairobi, Uasin Gishu)
+  physicalAddress String?  // Office or freight yard location
+  mpesaPaybill   String?   // Transporter collection Paybill or Till Number
+  mpesaAccountNo String?   // Account reference for Paybill disbursement
+  isMpesaVerified Boolean  @default(false)
+  rating         Float     @default(5.0)
+  totalTrips     Int       @default(0)
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("profiles")
+}
+
+/// Mandatory compliance and verification documents
+model VerificationDocument {
+  id             String             @id @default(uuid())
+  userId         String
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  documentType   DocumentType
+  documentNumber String             // e.g. KRA PIN, NTSA Lic No, Registration No
+  fileUrl        String             // Secure S3/GCS signed URL to attachment
+  expiryDate     DateTime?
+  status         VerificationStatus @default(PENDING)
+  reviewerNotes  String?
+  verifiedAt     DateTime?
+
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([userId, documentType])
+  @@map("verification_documents")
+}
+
+/// Freight shipment posted by verified shippers
+model Load {
+  id               String           @id @default(uuid())
+  title            String           // e.g., "500 Bags Fertiliser to Eldoret Depot"
+  commodity        String           // Tea, Cement, Grain, FMCG, Petroleum, Mining
+  originCounty     String           // e.g., "Mombasa"
+  originCity       String           // e.g., "Kilindini Port Gate 18"
+  destinationCounty String          // e.g., "Uasin Gishu"
+  destinationCity  String           // e.g., "Eldoret Town Depot"
+  
+  weightTons       Decimal          @db.Decimal(10, 2)
+  volumeCbm        Decimal?         @db.Decimal(10, 2)
+  equipmentType    EquipmentType
+  budgetKes        Decimal          @db.Decimal(12, 2)
+  targetPickupDate DateTime
+  targetDropDate   DateTime?
+  status           LoadStatus       @default(AVAILABLE)
+
+  // Corridors & Waypoints for route matching
+  corridor         String           @default("Mombasa-Nairobi-Malaba")
+  
+  // PostGIS spatial points for proximity calculation
+  originLat        Float?
+  originLng        Float?
+  destLat          Float?
+  destLng          Float?
+
+  shippedById      String
+  shippedBy        User             @relation("ShipperLoads", fields: [shippedById], references: [id])
+
+  // Booking relation
+  booking          Booking?
+
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([status, equipmentType])
+  @@index([originCounty, destinationCounty])
+  @@index([corridor])
+  @@map("loads")
+}
+
+/// Registered commercial truck owned by a transporter
+model Truck {
+  id               String        @id @default(uuid())
+  registrationNo   String        @unique // e.g. "KDB 492T / ZE 1204"
+  equipmentType    EquipmentType
+  maxCapacityTons  Decimal       @db.Decimal(10, 2)
+  currentLocation  String        // e.g., "Mombasa Port CFS", "Salgaa Weighbridge"
+  currentCounty    String        // e.g., "Mombasa"
+  currentLat       Float?
+  currentLng       Float?
+  status           TruckStatus   @default(AVAILABLE)
+
+  transporterId    String
+  transporter      User          @relation("TransporterTrucks", fields: [transporterId], references: [id])
+
+  // Bookings assigned to this truck
+  bookings         Booking[]
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([transporterId, status])
+  @@index([equipmentType, currentCounty])
+  @@map("trucks")
+}
+
+/// Matched contract between Shipper & Transporter with Safaricom Escrow
+model Booking {
+  id               String       @id @default(uuid())
+  loadId           String       @unique
+  load             Load         @relation(fields: [loadId], references: [id])
+
+  transporterId    String
+  transporter      User         @relation("TransporterBookings", fields: [transporterId], references: [id])
+
+  truckId          String?
+  truck            Truck?       @relation(fields: [truckId], references: [id])
+
+  finalAgreedPrice Decimal      @db.Decimal(12, 2)
+  driverName       String?
+  driverPhone      String?      // Receives the e-POD OTP for cargo handover
+  driverIdNumber   String?      // Kenyan National ID for gate pass
+
+  // Escrow Details
+  escrowStatus     EscrowStatus @default(PENDING_STK)
+  escrowRecord     EscrowTransaction?
+
+  // e-POD (Electronic Proof of Delivery)
+  epodToken        String?      @unique // Secure hash generated for delivery completion
+  epodOtpCode      String?      // 6-digit OTP sent to driver phone upon arrival
+  epodOtpExpiresAt DateTime?
+  epodVerifiedAt   DateTime?
+  epodImageUrl     String?      // Stamped physical consignment note photo
+
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([transporterId, escrowStatus])
+  @@map("bookings")
+}
+
+/// Safaricom M-Pesa B2B / C2B Escrow Audit Record
+model EscrowTransaction {
+  id                 String       @id @default(uuid())
+  bookingId          String       @unique
+  booking            Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  amountKes          Decimal      @db.Decimal(12, 2)
+  shipperPhone       String       // M-Pesa phone that paid STK Push
+  transporterPaybill String?      // Transporter Business Number / Paybill / Till
+  transporterAccount String?      // Account Reference
+  
+  // Safaricom Daraja API identifiers
+  merchantRequestId  String?      // Daraja MerchantRequestID
+  checkoutRequestId  String?      // Daraja CheckoutRequestID
+  mpesaReceiptNumber String?      // Safaricom Transaction ID (e.g., "QHD893KJ12")
+  b2cConversationId  String?      // Daraja B2C payout reference for release
+  
+  status             EscrowStatus @default(PENDING_STK)
+  heldAt             DateTime?
+  releasedAt         DateTime?
+  failureReason      String?
+
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([mpesaReceiptNumber])
+  @@index([checkoutRequestId])
+  @@map("escrow_transactions")
+}
+
+/// System audit log for compliance and security traceability
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String   // e.g. "ESCROW_LOCKED", "EPOD_OTP_VERIFIED", "UNAUTHORIZED_ACCESS_ATTEMPT"
+  entityType String   // "LOAD", "BOOKING", "ESCROW"
+  entityId   String?
+  ipAddress  String?
+  metadata   Json?
+  timestamp  DateTime @default(now())
+
+  @@index([action, timestamp])
+  @@map("audit_logs")
+}
