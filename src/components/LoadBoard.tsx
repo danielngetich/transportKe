@@ -5,20 +5,16 @@
 
 import React, { useState, useMemo } from 'react';
 import { 
-  Lock, 
-  ShieldAlert, 
   Truck, 
   MapPin, 
   Weight, 
   Calendar, 
-  CheckCircle2, 
   ArrowRight, 
   Phone, 
-  Sparkles,
-  CreditCard,
-  Building2,
-  FileCheck2,
-  RotateCcw
+  Sparkles, 
+  CreditCard, 
+  FileCheck2, 
+  RotateCcw 
 } from 'lucide-react';
 import { Load, User } from '../types.ts';
 import { LoadFilterBar, FilterState } from './LoadFilterBar.tsx';
@@ -141,67 +137,8 @@ export const LoadBoard: React.FC<LoadBoardProps> = ({
         allLoads={loads}
       />
 
-      {/* Security Enforcement Barrier for Unauthenticated or Non-Verified Users */}
-      {!isVerified ? (
-        <div className="relative rounded-2xl overflow-hidden border border-amber-500/30 bg-slate-900/90 shadow-2xl p-6 md:p-10 text-center">
-          <div className="max-w-2xl mx-auto space-y-4">
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 mx-auto flex items-center justify-center shadow-lg">
-              <ShieldAlert className="w-8 h-8" />
-            </div>
-
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-mono font-bold">
-              <Lock className="w-3.5 h-3.5" />
-              HTTP 401 UNAUTHORIZED: STRICT FREIGHT BOARD ACCESS
-            </div>
-
-            <h2 className="text-xl md:text-2xl font-bold text-white">
-              {currentUser?.verificationStatus === 'PENDING'
-                ? 'NTSA & KRA Verification Under Review'
-                : 'Commercial Transporter Verification Required'}
-            </h2>
-
-            <p className="text-sm text-slate-300 leading-relaxed">
-              In accordance with Kenyan freight regulations and KenyaLoad security standards, live load searches,
-              cargo owner contacts, bids, and booking privileges are strictly restricted to verified carriers with active{' '}
-              <strong>NTSA Commercial Road Service Licenses</strong> and <strong>KRA PIN compliance</strong>.
-            </p>
-
-            {authError && (
-              <div className="bg-slate-950 border border-slate-800 text-left p-4 rounded-xl text-xs font-mono text-slate-400 space-y-2">
-                <div className="text-rose-400 font-bold">authMiddleware.ts Security Intercept:</div>
-                <div>{authError.message}</div>
-                {authError.requiredSteps && (
-                  <ul className="list-disc list-inside space-y-1 text-slate-300 pt-1">
-                    {authError.requiredSteps.map((step, idx) => (
-                      <li key={idx}>{step}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-
-            <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button
-                onClick={() => onSelectPersona('transporter')}
-                className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg transition"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                Switch to Verified Carrier (Simba Hauliers)
-              </button>
-
-              <button
-                onClick={() => onSelectPersona('shipper')}
-                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition"
-              >
-                <Building2 className="w-4 h-4" />
-                Switch to Verified Shipper
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* Verified Load Feed (DAT One Grid / Cards) */
-        <div className="grid grid-cols-1 gap-4">
+      {/* Live Freight Load Feed (DAT One Grid / Cards) */}
+      <div className="grid grid-cols-1 gap-4">
           {filteredLoads.length === 0 ? (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center text-slate-400 space-y-4">
               <Truck className="w-12 h-12 mx-auto text-slate-600" />
@@ -343,7 +280,6 @@ export const LoadBoard: React.FC<LoadBoardProps> = ({
             })
           )}
         </div>
-      )}
     </div>
   );
 };

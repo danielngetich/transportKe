@@ -139,12 +139,8 @@ export default function App() {
       setStoredToken(null);
       setStoredUser(null);
       setCurrentUser(null);
-      setAuthError({
-        status: 401,
-        message: 'Access denied: Missing or malformed Authorization Bearer token. Public visitors may only view market metrics and county heatmaps.',
-        requiredSteps: ['Sign in as a registered transporter or shipper'],
-      });
-      setLoads([]);
+      setAuthError(null);
+      loadFreightData();
       return;
     }
 

@@ -172,7 +172,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </span>
                   </div>
                   <span className="text-[10px] text-slate-400 block font-mono">
-                    {currentUser ? `${currentUser.role} • ${currentUser.verificationStatus}` : 'Restricted Public View'}
+                    {currentUser ? `${currentUser.role} • ${currentUser.verificationStatus}` : 'Open Public Freight Board'}
                   </span>
                 </div>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
@@ -181,8 +181,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               {dropdownOpen && (
                 <div className="absolute right-0 mt-2 w-80 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-2 z-50 space-y-1">
                   <div className="px-3 py-2 border-b border-slate-800">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Test Auth & Security Personas</p>
-                    <p className="text-xs text-slate-500">Select role to verify authMiddleware enforcement</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">User & Testing Personas</p>
+                    <p className="text-xs text-slate-500">Select active role to explore the corridor exchange</p>
                   </div>
 
                   <button
@@ -200,7 +200,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <span className="text-xs font-bold text-slate-200 group-hover:text-emerald-400">Simba Hauliers Kenya Ltd</span>
                         <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-1 rounded font-bold">VERIFIED</span>
                       </div>
-                      <p className="text-[11px] text-slate-400">Transporter (Mombasa). Can search, bid & receive live Socket.IO alerts.</p>
+                      <p className="text-[11px] text-slate-400">Transporter (Mombasa). Real-time Socket.IO dispatch & escrow release.</p>
                     </div>
                   </button>
 
@@ -219,7 +219,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <span className="text-xs font-bold text-slate-200 group-hover:text-blue-400">Highland Agro Exports</span>
                         <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1 rounded font-bold">VERIFIED</span>
                       </div>
-                      <p className="text-[11px] text-slate-400">Shipper (Nairobi/Eldoret). Can post loads and trigger M-Pesa STK Escrow.</p>
+                      <p className="text-[11px] text-slate-400">Shipper (Nairobi/Eldoret). Post shipments & initiate M-Pesa STK Escrow.</p>
                     </div>
                   </button>
 
@@ -238,7 +238,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <span className="text-xs font-bold text-slate-200 group-hover:text-amber-400">Rift Valley Haulage</span>
                         <span className="text-[10px] bg-amber-500/20 text-amber-400 px-1 rounded font-bold">PENDING</span>
                       </div>
-                      <p className="text-[11px] text-slate-400">NTSA review pending. Blocked by authMiddleware with 401 Unauthorized.</p>
+                      <p className="text-[11px] text-slate-400">Transporter awaiting NTSA review. Can search all live loads.</p>
                     </div>
                   </button>
 
@@ -249,14 +249,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                     }}
                     className="w-full text-left p-2.5 rounded-lg hover:bg-slate-800 transition flex items-start gap-2.5 group"
                   >
-                    <div className="p-1.5 rounded bg-rose-500/10 text-rose-400 mt-0.5">
-                      <AlertTriangle className="w-4 h-4" />
+                    <div className="p-1.5 rounded bg-emerald-500/10 text-emerald-400 mt-0.5">
+                      <Truck className="w-4 h-4" />
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-slate-200 group-hover:text-rose-400">Public Visitor (Unauthenticated)</span>
+                        <span className="text-xs font-bold text-slate-200 group-hover:text-emerald-400">Public Visitor (Open Access)</span>
                       </div>
-                      <p className="text-[11px] text-slate-400">No JWT session. Restricted to landing page & county heatmaps.</p>
+                      <p className="text-[11px] text-slate-400">Unauthenticated mode. Full open access to live board and heatmaps.</p>
                     </div>
                   </button>
                 </div>
